@@ -55,9 +55,61 @@ def main(image_path: Optional[str], crop: Optional[float], maxwidth: Optional[in
     
     # Current visualization mode (default: Lucas-Kanade method)
     current_mode = 3
+    individual_param = 3
 
-    # FIX THIS
-    create_default_lk_flow = None
+#default
+# feature_params=dict(
+# maxCorners=100,
+# qualityLevel=0.2,
+# minDistance=15,
+# blockSize=7,
+# useHarrisDetector=False
+# ),
+
+# faster processing
+#     feature_params = dict(
+#     maxCorners = individual_param * 10,      # Fewer corners
+#     qualityLevel = individual_param / 50,    # Higher quality threshold
+#     minDistance = individual_param * 10,     # More spread out
+#     blockSize = individual_param * 3         # Larger blocks
+# )
+
+# detailed tracking
+# feature_params = dict(
+#     maxCorners = individual_param * 30,      # More corners
+#     qualityLevel = individual_param / 200,   # Lower quality threshold
+#     minDistance = individual_param * 3,      # Closer together
+#     blockSize = individual_param * 1         # Smaller blocks
+# )
+
+# individual
+# feature_params=dict(
+#            maxCorners= individual_param * 2,
+#            qualityLevel= individual_param / 100,
+#            minDistance= individual_param * 5,
+#            blockSize= individual_param * 2,
+#            useHarrisDetector=False
+#         )
+
+    create_default_lk_flow = lambda: optical_flow.LucasKanadeOpticalFlow(
+        feature_params=dict(
+           maxCorners= individual_param * 2,
+           qualityLevel= individual_param / 100,
+           minDistance= individual_param * 5,
+           blockSize= individual_param * 2,
+           useHarrisDetector=False
+        ),
+        lk_params=dict(
+            winSize=(15, 15),
+            maxLevel=2,
+            criteria=(
+                cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
+                20,
+                0.03
+            )
+        ),
+    )
+
 
     CompoundTrackerInstantiator = lambda x: CompoundVectorInferenceSparse(
         initial_motion_vector=x,

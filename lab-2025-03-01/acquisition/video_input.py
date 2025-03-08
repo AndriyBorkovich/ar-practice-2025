@@ -8,26 +8,6 @@ from acquisition.image_series_input import SavedImageSeriesInput
 from preprocessing.video_slicing import MP4VideoSlicer
 
 
-class PiCameraLiveInput(BaseVideoInput):
-    def __init__(self, crop_factor: float, resize_hfov: int) -> None:
-        from picamera2 import Picamera2
-        picam2 = Picamera2()
-        config = picam2.create_preview_configuration(main={'format': 'RGB888'})
-        picam2.configure(config)
-        picam2.start()
-        time.sleep(1)  # wait for camera to initialize
-        self.camera = picam2
-        self._initialize_preprocess_frame(crop_factor, resize_hfov)
-
-    def capture(self):
-        array = self.camera.capture_array('main')
-        return self.preprocess_frame(array)
-
-    def destroy(self):
-        self.camera.stop()
-        return super().destroy()
-
-
 class RecordedVideoInput(BaseVideoInput):
     def __init__(self, video_url: str, crop_factor: Optional[float] = 1, resize_maxwidth: Optional[int] = None) -> None:
         super().__init__()
@@ -69,27 +49,31 @@ class RecordedVideoInput(BaseVideoInput):
 
 
 class DefaultCameraVideoInput(BaseVideoInput):
-    def __init__(self) -> None:
+    def __init__(self, crop_factor: float = 1, resize_maxwidth: Optional[int] = None) -> None:
         super().__init__()
-        camera = cv2.VideoCapture(0)
+        camera = cv2.VideoCapture(0)  # 0 is usually the default webcam
         if not camera.isOpened():
             raise Exception('Camera could not initialize')
         self.camera = camera
+        self._initialize_preprocess_frame(crop_factor, resize_maxwidth)
     
     def capture(self):
         rval, frame = self.camera.read()
-        return frame
+        if rval:
+            return self.preprocess_frame(frame)
+        return None
+
+    def destroy(self):
+        self.camera.release()
+        return super().destroy()
 
 
 def get_video_input(source_path=None, crop=None, maxwidth=None) -> BaseVideoInput:
-    try:
-        return PiCameraLiveInput()
-    except Exception:
-        if source_path:
-            # Decide if provided path is folder or video file
-            if os.path.isfile(source_path):
-                return RecordedVideoInput(source_path, crop_factor=crop, resize_maxwidth=maxwidth)
-            else:
-                return SavedImageSeriesInput(source_path, crop_factor=crop, resize_maxwidth=maxwidth)
+    if source_path:
+        # Decide if provided path is folder or video file
+        if os.path.isfile(source_path):
+            return RecordedVideoInput(source_path, crop_factor=crop, resize_maxwidth=maxwidth)
         else:
-            return DefaultCameraVideoInput()
+            return SavedImageSeriesInput(source_path, crop_factor=crop, resize_maxwidth=maxwidth)
+    else:
+        return DefaultCameraVideoInput(crop_factor=crop, resize_maxwidth=maxwidth)
